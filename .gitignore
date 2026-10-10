@@ -1,0 +1,5 @@
+# spike test debris
+modules/inertia/spike-tests/*.html
+modules/inertia/spike-tests/*.json
+modules/inertia/spike-tests/*.txt
+modules/inertia/spike-tests/cookies.txt
