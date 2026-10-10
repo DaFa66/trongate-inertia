@@ -38,7 +38,8 @@ const view = (p) => `
     <form inertia method="post" action="${BASE}journal/store">
         <input name="symbol" placeholder="symbol" size="10">
         <input name="amount" placeholder="amount" size="10">
-        <button>Add row (404s without a token, 303 with one)</button>
+        <input type="hidden" name="csrf_token" value="${p.props.csrf_token}">
+        <button>Add row</button>
     </form>
     <p>
         <a inertia href="${BASE}journal">Reload this page</a> |
@@ -67,19 +68,36 @@ async function swap(response) {
         return;
     }
 
-    // Not an Inertia response (an error page, a full document) - hard load it.
-    window.location.href = response.url;
+    // Not an Inertia response. A real Inertia client raises an HTTP exception
+    // here and surfaces an error, rather than silently navigating.
+    if (response.redirected === true) {
+        // Bounced somewhere else (a login page, the site home). Follow it.
+        window.location.href = response.url;
+        return;
+    }
+
+    const body = (await response.text()).slice(0, 300);
+    document.getElementById("app").innerHTML =
+        `<h1>Inertia request failed</h1>
+         <p class="meta">HTTP ${response.status}, not an Inertia response</p>
+         <pre>${body.replace(/</g, "&lt;")}</pre>`;
 }
 
 async function visit(url, options = {}) {
+    // Merge, do not clobber. The caller's Content-Type has to survive, or the
+    // body arrives as text/plain, post() never parses it, and the framework's
+    // own CSRF gate rejects the request with a 403.
+    const headers = {
+        "X-Inertia": "true",
+        "X-Inertia-Version": page.version,
+        "Accept": "text/html, application/xhtml+xml",
+        ...(options.headers || {})
+    };
+
     const response = await fetch(url, {
         ...options,
         credentials: "same-origin",
-        headers: {
-            "X-Inertia": "true",
-            "X-Inertia-Version": page.version,
-            "Accept": "text/html, application/xhtml+xml"
-        }
+        headers: headers
     });
 
     await swap(response);
@@ -97,8 +115,9 @@ document.addEventListener("submit", async (event) => {
     if (!form) { return; }
     event.preventDefault();
 
+    // The hidden csrf_token input carries the token, so a native submit works
+    // as well as this JSON one.
     const body = Object.fromEntries(new FormData(form));
-    body.csrf_token = page.props.csrf_token;
 
     await visit(form.action, {
         method: form.method || "POST",

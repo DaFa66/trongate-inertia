@@ -80,6 +80,37 @@ makes check 11 work.
 Dual mode holds too: the same endpoint answers a plain HTML form post with a 302,
 so non-Inertia clients keep working.
 
+## Verified in a browser (2026-10-11)
+
+The protocol was also driven in Chrome against the demo shell, with `fetch`
+instrumented, so the client half is not only curl:
+
+- a page visit returns the JSON page object and swaps in place, with no reload
+- a form submit sends `application/json` with the token in the body, follows the
+  303, and renders the saved row and the flash
+- failed validation renders `props.errors` in place, as a one-shot prop
+- the external redirect returns 409 + `X-Inertia-Location`, and the client follows it
+- an app-level 404 arrives as a page object carrying a 404 status
+- a framework 404 arrives as HTML and is reported rather than silently navigated
+- a native form post, with the JS bypassed entirely, still saves the row and lands
+  on a full page load
+
+That run found two defects in the demo shell, both since fixed:
+
+1. `visit()` set `headers` *after* spreading the caller's options, so it replaced
+   the caller's `Content-Type`. The JSON body went out as `text/plain`,
+   `Form::post()` fell back to `$_POST`, and the framework's own CSRF gate
+   answered `403 CSRF token validation failed`. Headers are now merged. The curl
+   harness never caught this because it sets the header itself.
+2. The non-Inertia branch hard-navigated the browser to the response URL, which
+   turned that 403 into a bounce to the site home page. A real Inertia client
+   raises an HTTP exception instead, so the shell now reports the status and body,
+   and only follows a response that was actually redirected.
+
+The demo form also carries a hidden `csrf_token` input now, so the endpoint
+degrades gracefully when JavaScript is not in play rather than being bounced to
+the home page by the CSRF gate.
+
 ## What Trongate v2 already gives you
 
 Most of the "this needs core surgery" list turns out to be already built:
