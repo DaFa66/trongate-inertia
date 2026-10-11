@@ -28,12 +28,24 @@ an Inertia response) lives in the module.
 
 ## Install
 
-Copy two folders into a Trongate v2 app:
+Copy three folders into a Trongate v2 app:
 
 ```
-modules/inertia/     the adapter
-modules/journal/     demo controller (delete it once you have your own)
+modules/inertia/        the adapter
+modules/inertia_guard/  optional interceptor, enforces the asset version early
+modules/journal/        demo controller (delete it once you have your own)
 ```
+
+The guard does nothing until you switch it on in `config/config.php`:
+
+```php
+define('INERTIA_VERSION', '1');
+define('INTERCEPTORS', ['inertia_guard' => 'run']);
+```
+
+Set `INERTIA_VERSION` to your build value. The adapter reads the same constant,
+so the page object and the guard cannot disagree. Without the guard, the version
+check still happens, but only inside `render()`.
 
 Then visit `/journal` in a browser. Nothing to configure, no schema changes, no
 build step: the demo stores its rows in the session.

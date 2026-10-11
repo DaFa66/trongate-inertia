@@ -26,6 +26,9 @@ class Inertia extends Trongate {
      */
     public function __construct(?string $module_name = null) {
         parent::__construct($module_name);
+        if (defined('INERTIA_VERSION')) {
+            $this->version = (string) INERTIA_VERSION;
+        }
         block_url('inertia');
     }
 
