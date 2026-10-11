@@ -119,18 +119,23 @@ Most of the "this needs core surgery" list turns out to be already built:
   `php://input` (`modules/form/Form.php`). Inertia's JSON bodies just work.
 - **CSRF with JSON bodies.** The gate is `post('csrf_token')`
   (`modules/validation/Validation.php`), the same parser, so a token in the JSON
-  body satisfies it. No header interceptor needed.
+  body satisfies it. No header handling needed.
 - **JSON validation errors.** `validation_errors(400)` already emits field-keyed
   JSON with a 400 and `Content-Type: application/json`.
 - **Swappable error page.** `ERROR_404` in `config/config.php` is a constant
   pointing at a handler module, so framework 404 rendering is configurable.
+- **An early-request hook.** `INTERCEPTORS` runs before routing and before
+  controllers, so cross-cutting work such as an asset-version check belongs there.
 
 The real work is the response shape plus one-shot props. Roughly 230 lines.
 
 ## Gaps
 
-- **No middleware seam.** The engine has no hook layer, so the adapter is opt-in
-  per action. That is the price of not touching core.
+- **No per-route middleware.** Interceptors (`INTERCEPTORS`, `engine/ignition.php`,
+  documented in the Intercepting Requests chapter) run on every request before the
+  controller and cannot be scoped to one route. Nothing runs automatically after a
+  controller either; hooks there are explicit calls inside the action, by design. So the
+  page shape stays per action.
 - **Framework-level 404s are still HTML.** `draw_error_page()` is private to Core
   and renders the `ERROR_404` handler as a page. To answer JSON for a bad route,
   point `ERROR_404` at your own handler that checks for the `X-Inertia` header.
